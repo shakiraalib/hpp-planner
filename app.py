@@ -42,10 +42,9 @@ def get_ai_response(prompt):
             else:
                 continue
         except Exception as e:
-            print(f"Error pada model {m_name}: {e}")
+            # Tambahkan baris ini sementara untuk diagnosa:
+            # st.error(f"Detail Error: {e}") 
             continue
-            
-    return "⚠️ Wah, AI-nya lagi malu-malu. Coba klik tombol saran sekali lagi ya, Shakira!"
 
 
 # --- 2. CORE SETTINGS & THEME ---

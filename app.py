@@ -55,6 +55,7 @@ def get_ai_response(prompt):
     except Exception as e:
         # Menangkap pesan error agar kita tahu persis masalahnya
         return f"⚠️ Masalah teknis: {str(e)}"
+
 # --- 3. THEME & STYLING ---
 def apply_styling():
     st.markdown("""
@@ -100,21 +101,34 @@ with st.sidebar:
     
     if prod_name:
         if st.button("✨ Dapatkan Saran AI"):
-            with st.spinner("AI berpikir..."):
-                prompt = f"Berikan saran singkat bahan untuk {prod_name} dalam kategori {intent_type}."
+            with st.spinner("Sedang menghitung estimasi bahan..."):
+                # INI PERUBAHANNYA: Perintah ke AI dibuat lebih detail
+                prompt = f"""
+                Kamu adalah konsultan produksi untuk bisnis {intent_type}. 
+                Analisis rincian bahan yang dibutuhkan untuk membuat "{prod_name}".
+                
+                Berikan jawaban dalam bentuk daftar:
+                1. Nama Bahan & kegunaannya.
+                2. Estimasi harga pasar di Indonesia (dalam Rp).
+                3. Estimasi total biaya bahan baku per 1 pcs produk.
+                
+                Tuliskan secara singkat, padat, dan jelas untuk UMKM.
+                """
                 st.session_state.ai_res = get_ai_response(prompt)
         
         if 'ai_res' in st.session_state:
             st.markdown(f"""<div style="background: white; border: 1px solid #D08C9F; padding: 15px; border-radius: 15px; margin-bottom: 10px;">
-                <div style="color:#D08C9F; font-weight:700; font-size:12px; margin-bottom:8px;">✨ Rekomendasi AI</div>
-                <div style="font-size:11px; color:#666; line-height:1.5;">{st.session_state.ai_res}</div>
+                <div style="color:#D08C9F; font-weight:700; font-size:12px; margin-bottom:8px;">✨ Analisis Produksi & Harga</div>
+                <div style="font-size:11px; color:#666; line-height:1.5; white-space: pre-wrap;">{st.session_state.ai_res}</div>
             </div>""", unsafe_allow_html=True)
             
             if st.button("🪄 Gunakan sebagai Rincian Biaya"):
+                # Template otomatis agar user tinggal isi angka dari saran AI
                 st.session_state.costs = [
-                    {"item": "Bahan Utama Premium", "price": 0, "qty": 1}, 
-                    {"item": "Packaging & Label", "price": 0, "qty": 1}, 
-                    {"item": "Ongkos Produksi", "price": 0, "qty": 1}
+                    {"item": "Bahan Utama", "price": 0, "qty": 1}, 
+                    {"item": "Bahan Pendukung", "price": 0, "qty": 1}, 
+                    {"item": "Packaging", "price": 0, "qty": 1},
+                    {"item": "Ongkos Kerja", "price": 0, "qty": 1}
                 ]
                 st.rerun()
     

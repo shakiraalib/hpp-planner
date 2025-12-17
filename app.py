@@ -15,17 +15,15 @@ except:
     # Ganti dengan kunci aslimu jika ingin menjalankan di laptop (local)
     DAFTAR_KUNCI = ["AIzaSyDRQKjyrI4J8HXYXiS0iqT6MYgOXVFQI7M"] 
 
-def get_ai_response(prompt):
+         def get_ai_response(prompt):
     kunci = random.choice(DAFTAR_KUNCI)
     genai.configure(api_key=kunci)
     
-    # Mencoba beberapa model untuk stabilitas
     model_variants = ['gemini-1.5-flash', 'gemini-pro']
     
     for m_name in model_variants:
         try:
             model = genai.GenerativeModel(m_name)
-            # Menambahkan Safety Settings agar jawaban tidak diblokir (Penyebab "None")
             response = model.generate_content(
                 prompt,
                 safety_settings=[
@@ -36,16 +34,20 @@ def get_ai_response(prompt):
                 ]
             )
             
-            # Pastikan respon memiliki teks sebelum dikembalikan
+            # Cek apakah respon diblokir oleh AI
+            if response.candidates and response.candidates[0].finish_reason == 3:
+                return "⚠️ Konten diblokir oleh filter keamanan Google. Coba ganti nama produk."
+
             if response and response.text:
                 return response.text
-            else:
-                continue
+                
         except Exception as e:
-            # Tambahkan baris ini sementara untuk diagnosa:
-            # st.error(f"Detail Error: {e}") 
+            # Baris di bawah ini akan memunculkan error aslinya di sidebar
+            # Jika sudah normal, baris ini bisa kamu hapus nanti
+            st.sidebar.error(f"Sistem mencatat: {str(e)[:50]}...")
             continue
-
+            
+    return "⚠️ Limit tercapai atau koneksi terputus. Coba lagi dalam 60 detik ya!"
 
 # --- 2. CORE SETTINGS & THEME ---
 st.set_page_config(page_title="Studio Pricing Dashboard", layout="wide", initial_sidebar_state="expanded")

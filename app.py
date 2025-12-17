@@ -16,29 +16,42 @@ st.set_page_config(
 
 # --- 2. MODELS & KEYS (VERSI TAHAN BANTING) ---
 def get_ai_response(prompt):
-    # Ambil daftar kunci dari secrets
     try:
         keys = st.secrets["GEMINI_KEYS"]
-        # Pastikan keys adalah list, kalau cuma satu string kita bungkus jadi list
-        if isinstance(keys, str):
-            keys = [keys]
+        if isinstance(keys, str): keys = [keys]
     except:
         return "❌ Kunci tidak ditemukan di Secrets!"
 
-    # Acak urutan kunci supaya kalau satu limit, coba yang lain
-    random.shuffle(keys)
-    
     for kunci in keys:
         try:
             genai.configure(api_key=kunci)
+            # Pakai model flash terbaru yang lebih ringan & stabil
             model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(prompt)
+            
+            response = model.generate_content(
+                prompt,
+                # INI PENTING: Supaya AI tidak gampang memblokir jawaban
+                safety_settings={
+                    "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+                    "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                    "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+                    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
+                }
+            )
+            
             if response.text:
                 return response.text
-        except Exception:
-            continue # Coba kunci berikutnya kalau yang ini gagal
+            else:
+                return "⚠️ AI merespon tapi tidak ada teks (mungkin terfilter)."
+        except Exception as e:
+            # Jika error karena kunci (Invalid API Key), kita lanjut ke kunci berikutnya
+            if "API_KEY_INVALID" in str(e):
+                continue
+            # Jika error karena limit, kita beri tahu alasannya
+            return f"⚠️ Masalah teknis: {str(e)[:50]}..."
             
-    return "⚠️ Semua kunci sedang limit/eror. Coba lagi nanti ya!"
+    return "⚠️ Semua kunci gagal. Pastikan API Key di Secrets sudah benar (copy-paste lengkap)."
+
 # --- 3. THEME & STYLING ---
 def apply_styling():
     st.markdown("""

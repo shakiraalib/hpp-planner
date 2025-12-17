@@ -8,8 +8,7 @@ import google.generativeai as genai
 from datetime import datetime
 
 # --- 1. CONFIG & MODELS ---
-try:
-    DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
+
 try:
     DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
     # Tambahkan baris ini untuk tes (Hanya akan muncul di sidebar)

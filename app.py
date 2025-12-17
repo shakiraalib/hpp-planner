@@ -7,18 +7,45 @@ import random
 import google.generativeai as genai
 from datetime import datetime
 
-# --- 1. CONFIG & MODELS (Versi Aman) ---
-# Kita ambil daftar kunci dari Secrets Streamlit
+# --- 1. CONFIG & MODELS (Versi Anti-None & Aman) ---
 try:
-    DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"] # Mengambil dari brankas
+    # Mengambil daftar kunci dari Secrets Streamlit (format TOML array)
+    DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
 except:
-    # Ini buat cadangan kalau kamu masih jalanin di laptop sendiri
-    DAFTAR_KUNCI = ["KUNCI_LOKAL_KAMU_DISINI"] 
+    # Ganti dengan kunci aslimu jika ingin menjalankan di laptop (local)
+    DAFTAR_KUNCI = ["AIzaSyDRQKjyrI4J8HXYXiS0iqT6MYgOXVFQI7M"] 
 
 def get_ai_response(prompt):
     kunci = random.choice(DAFTAR_KUNCI)
     genai.configure(api_key=kunci)
-    # ... sisa kodenya sama seperti sebelumnya ...
+    
+    # Mencoba beberapa model untuk stabilitas
+    model_variants = ['gemini-1.5-flash', 'gemini-pro']
+    
+    for m_name in model_variants:
+        try:
+            model = genai.GenerativeModel(m_name)
+            # Menambahkan Safety Settings agar jawaban tidak diblokir (Penyebab "None")
+            response = model.generate_content(
+                prompt,
+                safety_settings=[
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                ]
+            )
+            
+            # Pastikan respon memiliki teks sebelum dikembalikan
+            if response and response.text:
+                return response.text
+            else:
+                continue
+        except Exception as e:
+            print(f"Error pada model {m_name}: {e}")
+            continue
+            
+    return "⚠️ Wah, AI-nya lagi malu-malu. Coba klik tombol saran sekali lagi ya, Shakira!"
 
 
 # --- 2. CORE SETTINGS & THEME ---

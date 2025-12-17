@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. MODELS & KEYS (FITUR ASLI) ---
+# --- 2. MODELS & KEYS (FITUR ASLI KAMU) ---
 try:
     DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
     st.sidebar.success(f"Berhasil memuat {len(DAFTAR_KUNCI)} kunci!")
@@ -32,7 +32,7 @@ def get_ai_response(prompt):
     except:
         return "⚠️ Cek API Key."
 
-# --- 3. THEME & STYLING (STYLE ASLI + DEKORASI) ---
+# --- 3. THEME & STYLING ---
 def apply_styling():
     st.markdown("""
     <style>
@@ -44,10 +44,9 @@ def apply_styling():
     .stButton>button { border-radius: 14px !important; font-weight: 600 !important; width: 100%; }
     .kpi-label { font-size: 11px; font-weight: 700; color: #BBB; text-transform: uppercase; }
     .kpi-val { font-size: 24px; font-weight: 700; color: #D08C9F; display: block; }
-    .strat-box { padding: 22px; border-radius: 18px; border: 1px solid #F0F0F0; text-align: center; height: 100%; transition: 0.3s; }
+    .strat-box { padding: 22px; border-radius: 18px; border: 1px solid #F0F0F0; text-align: center; height: 100%; }
     .strat-sweet { background-color: #F7F9F7; border: 2px solid #8BA888; box-shadow: 0 10px 20px rgba(139, 168, 136, 0.12); }
     
-    /* UI Label & Bunga */
     .table-header { font-size: 12px; font-weight: 700; color: #D08C9F; margin-bottom: 8px; }
     .flower-spacer { 
         background: rgba(255, 240, 243, 0.4); padding: 8px; border-radius: 12px; 
@@ -62,12 +61,13 @@ apply_styling()
 if 'costs' not in st.session_state:
     st.session_state.costs = [{"item": "Bahan Utama", "price": 0, "qty": 1}]
 
-def add_row(): st.session_state.costs.append({"item": "", "price": 0, "qty": 1})
+def add_row(): 
+    st.session_state.costs.append({"item": "", "price": 0, "qty": 1})
 
-# --- 5. SIDEBAR (KEMBALI KE ASLI) ---
+# --- 5. SIDEBAR (FITUR LENGKAP KEMBALI) ---
 with st.sidebar:
     st.markdown("### 🌸 Strategic Assistance")
-    st.caption("Bantu tentukan harga paling aman & menguntungkan untuk produkmu.")
+    st.caption("Bantu tentukan harga paling aman & menguntungkan.")
     st.markdown("---")
     st.markdown("#### 1️⃣ Mau Buat Apa Hari Ini?")
     intent_type = st.selectbox("Tujuan:", ["Koleksi Fashion", "Produk Beauty", "Food & Beverage", "Custom Project"])
@@ -77,7 +77,7 @@ with st.sidebar:
     
     if prod_name:
         if st.button("✨ Dapatkan Saran AI"):
-            with st.spinner("AI sedang berpikir..."):
+            with st.spinner("AI berpikir..."):
                 prompt = f"Berikan saran singkat bahan untuk {prod_name} dalam kategori {intent_type}."
                 st.session_state.ai_res = get_ai_response(prompt)
         
@@ -106,7 +106,7 @@ with st.sidebar:
 # --- 6. MAIN CONTENT ---
 st.markdown(f"## {prod_name if prod_name else 'Pricing Planner'} ☁️")
 
-# STEP 1
+# --- STEP 1 ---
 st.markdown("### 🧮 Step 1: Cost Input")
 st.markdown("<div class='flower-spacer'>🌸 ✨ ☁️ Studio Pricing Mode ☁️ ✨ 🌸</div>", unsafe_allow_html=True)
 
@@ -140,10 +140,12 @@ st.markdown(f"""<div style="display: flex; gap: 20px; margin-top:15px;">
 </div>""", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# HITUNG SEBELUM DIPAKAI DI STEP 3 & 4
-safe_p, sweet_p, prem_p = int(round(hpp_unit*1.25,-2)), int(round(hpp_unit*1.45,-2)), int(round(hpp_unit*2.0,-2))
+# PERHITUNGAN HARGA (DITARUH DI SINI AGAR VARIABELNYA TERSEDIA UNTUK SEMUA STEP)
+safe_p = int(round(hpp_unit * 1.25, -2))
+sweet_p = int(round(hpp_unit * 1.45, -2))
+prem_p = int(round(hpp_unit * 2.0, -2))
 
-# STEP 2
+# --- STEP 2 ---
 st.markdown("### 📤 Step 2: Export & Finalization")
 st.markdown("<div class='flower-spacer'>✨ 📥 Simpan Laporan Cantikmu 📥 ✨</div>", unsafe_allow_html=True)
 st.markdown("<div class='p-card'>", unsafe_allow_html=True)
@@ -153,27 +155,46 @@ with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
 st.download_button(label="📥 Unduh Laporan Lengkap", data=output.getvalue(), file_name=f"Pricing_{prod_name}.xlsx")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# STEP 3
+# --- STEP 3 ---
 st.markdown("### 💰 Step 3: Pricing Strategy")
 st.markdown("<div class='flower-spacer'>🌸 Pilih Strategi Harga Terbaikmu 🌸</div>", unsafe_allow_html=True)
 sc1, sc2, sc3 = st.columns(3)
-strats = [("SAFE", safe_p, "20%", "Harga aman."), ("SWEET", sweet_p, "31%", "Harga ideal.", "strat-sweet"), ("PREMIUM", prem_p, "50%", "Eksklusif.")]
-for i, (lbl, prc, mrg, cls) in enumerate(strats):
+strats = [
+    ("SAFE", safe_p, "20%", "Harga aman tanpa rugi."), 
+    ("SWEET", sweet_p, "31%", "Harga ideal & seimbang."), 
+    ("PREMIUM", prem_p, "50%", "Positioning eksklusif.")
+]
+for i, (lbl, prc, mrg, dsc) in enumerate(strats):
+    cls = "strat-sweet" if lbl == "SWEET" else ""
     with [sc1, sc2, sc3][i]:
-        st.markdown(f"<div class='strat-box {cls}'><span class='kpi-label'>{lbl}</span><span class='kpi-val'>Rp {prc:,.0f}</span><div style='color:#8BA888; font-weight:700;'>Margin: {mrg}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"""<div class="strat-box {cls}">
+            <span class="kpi-label">{lbl}</span>
+            <span class="kpi-val">Rp {prc:,.0f}</span>
+            <div style="color:#8BA888; font-weight:700;">Margin: {mrg}</div>
+            <div style="font-size:11px; color:#999; margin-top:8px;">{dsc}</div>
+        </div>""", unsafe_allow_html=True)
 
-# STEP 4
+# --- STEP 4 ---
 st.markdown("### 📊 Step 4: Visual Insights")
 st.markdown("<div class='flower-spacer'>✨ Analisis Grafik Produksi ✨</div>", unsafe_allow_html=True)
 st.markdown("<div class='p-card'>", unsafe_allow_html=True)
 vi1, vi2 = st.columns(2)
 with vi1:
-    fig = go.Figure(data=[go.Bar(x=['Safe', 'Sweet', 'Premium'], y=[safe_p, sweet_p, prem_p], marker_color='#D08C9F', text=[f"Rp {x:,.0f}" for x in [safe_p, sweet_p, prem_p]], textposition='auto')])
-    fig.update_layout(title="Proyeksi Harga", height=350, plot_bgcolor='rgba(0,0,0,0)')
+    fig = go.Figure(data=[go.Bar(
+        x=['Safe', 'Sweet', 'Premium'], 
+        y=[safe_p, sweet_p, prem_p], 
+        marker_color='#D08C9F', 
+        text=[f"Rp {x:,.0f}" for x in [safe_p, sweet_p, prem_p]], 
+        textposition='auto'
+    )])
+    fig.update_layout(title="Proyeksi Harga Jual", height=350, plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig, use_container_width=True)
 with vi2:
-    x_b = np.linspace(0, target_qty*2, 20); y_r = sweet_p * x_b; y_c = fixed_cost + (total_var * x_b)
-    fig2 = go.Figure(); fig2.add_trace(go.Scatter(x=x_b, y=y_r, name="Revenue", line=dict(color='#8BA888', width=3)))
+    x_b = np.linspace(0, target_qty*2, 20)
+    y_r = sweet_p * x_b
+    y_c = fixed_cost + (total_var * x_b)
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=x_b, y=y_r, name="Revenue", line=dict(color='#8BA888', width=3)))
     fig2.add_trace(go.Scatter(x=x_b, y=y_c, name="Cost", line=dict(color='#D08C9F', width=2)))
     fig2.update_layout(title="Analisis BEP", height=350, plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig2, use_container_width=True)

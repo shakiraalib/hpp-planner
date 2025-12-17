@@ -7,24 +7,19 @@ import random
 import google.generativeai as genai
 from datetime import datetime
 
-# --- 1. CONFIG & MODELS (Auto-Rotate API Key) ---
-DAFTAR_KUNCI = [
-    "AIzaSyDRQKjyrI4J8HXYXiS0iqT6MYgOXVFQI7M", 
-    "AIzaSyDvZ5be7Q89XtoYZK_Qx_54MNnmdZAyDjg"
-]
+# --- 1. CONFIG & MODELS (Versi Aman) ---
+# Kita ambil daftar kunci dari Secrets Streamlit
+try:
+    DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"] # Mengambil dari brankas
+except:
+    # Ini buat cadangan kalau kamu masih jalanin di laptop sendiri
+    DAFTAR_KUNCI = ["KUNCI_LOKAL_KAMU_DISINI"] 
 
 def get_ai_response(prompt):
     kunci = random.choice(DAFTAR_KUNCI)
     genai.configure(api_key=kunci)
-    # Mencoba beberapa variasi nama model untuk stabilitas
-    for model_name in ['gemini-1.5-flash', 'gemini-pro']:
-        try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception:
-            continue
-    return "Maaf, saran AI sedang tidak tersedia. Silakan coba lagi nanti."
+    # ... sisa kodenya sama seperti sebelumnya ...
+
 
 # --- 2. CORE SETTINGS & THEME ---
 st.set_page_config(page_title="Studio Pricing Dashboard", layout="wide", initial_sidebar_state="expanded")

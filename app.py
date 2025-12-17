@@ -7,15 +7,14 @@ import random
 import google.generativeai as genai
 from datetime import datetime
 
-# --- 1. CONFIG & MODELS (Versi Anti-None & Aman) ---
+# --- 1. CONFIG & MODELS ---
 try:
-    # Mengambil daftar kunci dari Secrets Streamlit (format TOML array)
     DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
 except:
-    # Ganti dengan kunci aslimu jika ingin menjalankan di laptop (local)
     DAFTAR_KUNCI = ["AIzaSyDRQKjyrI4J8HXYXiS0iqT6MYgOXVFQI7M"] 
 
-         def get_ai_response(prompt):
+# Pastikan "def" ini nempel ke kiri, tidak ada spasi di depannya
+def get_ai_response(prompt):
     kunci = random.choice(DAFTAR_KUNCI)
     genai.configure(api_key=kunci)
     
@@ -34,20 +33,13 @@ except:
                 ]
             )
             
-            # Cek apakah respon diblokir oleh AI
-            if response.candidates and response.candidates[0].finish_reason == 3:
-                return "⚠️ Konten diblokir oleh filter keamanan Google. Coba ganti nama produk."
-
             if response and response.text:
                 return response.text
-                
         except Exception as e:
-            # Baris di bawah ini akan memunculkan error aslinya di sidebar
-            # Jika sudah normal, baris ini bisa kamu hapus nanti
             st.sidebar.error(f"Sistem mencatat: {str(e)[:50]}...")
             continue
             
-    return "⚠️ Limit tercapai atau koneksi terputus. Coba lagi dalam 60 detik ya!"
+    return "⚠️ Limit tercapai. Coba lagi dalam 60 detik."
 
 # --- 2. CORE SETTINGS & THEME ---
 st.set_page_config(page_title="Studio Pricing Dashboard", layout="wide", initial_sidebar_state="expanded")

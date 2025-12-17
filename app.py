@@ -10,8 +10,13 @@ from datetime import datetime
 # --- 1. CONFIG & MODELS ---
 try:
     DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
+try:
+    DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
+    # Tambahkan baris ini untuk tes (Hanya akan muncul di sidebar)
+    st.sidebar.success(f"Berhasil memuat {len(DAFTAR_KUNCI)} kunci!")
 except:
-    DAFTAR_KUNCI = ["AIzaSyDRQKjyrI4J8HXYXiS0iqT6MYgOXVFQI7M"] 
+    st.sidebar.error("Brankas Secrets kosong!")
+    DAFTAR_KUNCI = ["KUNCI_CADANGAN_DISINI"]
 
 # Pastikan "def" ini nempel ke kiri, tidak ada spasi di depannya
 def get_ai_response(prompt):

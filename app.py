@@ -18,30 +18,35 @@ def get_ai_response(prompt):
     kunci = random.choice(DAFTAR_KUNCI)
     genai.configure(api_key=kunci)
     
-    # Menambahkan prefix 'models/' secara eksplisit untuk menghindari 404
-    model_variants = ['models/gemini-1.5-flash', 'models/gemini-pro']
-    
-    for m_name in model_variants:
-        try:
-            model = genai.GenerativeModel(model_name=m_name)
-            response = model.generate_content(
-                prompt,
-                safety_settings=[
-                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-                ]
-            )
-            
-            if response and response.text:
-                return response.text
-        except Exception as e:
-            # Menampilkan error singkat di sidebar untuk pantauan
-            st.sidebar.warning(f"Coba {m_name}: {str(e)[:40]}")
-            continue
-            
-    return "⚠️ Masalah koneksi API (404/Limit). Tunggu 1 menit lalu coba lagi ya!"
+    # Mencari model apa saja yang tersedia di akunmu
+    available_models = []
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+    except:
+        available_models = ['models/gemini-1.5-flash', 'models/gemini-pro']
+
+    # Coba model yang ditemukan satu per satu
+    for m_name in available_models:
+        if 'gemini' in m_name: # Kita hanya mau model Gemini
+            try:
+                model = genai.GenerativeModel(model_name=m_name)
+                response = model.generate_content(
+                    prompt,
+                    safety_settings=[
+                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                    ]
+                )
+                if response and response.text:
+                    return response.text
+            except Exception:
+                continue
+                
+    return "⚠️ Semua model gagal merespon. Cek apakah API Key di 'Secrets' sudah benar."
 
 # --- 2. CORE SETTINGS & THEME ---
 st.set_page_config(page_title="Studio Pricing Dashboard", layout="wide", initial_sidebar_state="expanded")

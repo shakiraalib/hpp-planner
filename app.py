@@ -14,24 +14,31 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. MODELS & KEYS (FITUR ASLI KAMU) ---
-try:
-    DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
-    st.sidebar.success(f"Berhasil memuat {len(DAFTAR_KUNCI)} kunci!")
-except:
-    st.sidebar.error("Brankas Secrets kosong!")
-    DAFTAR_KUNCI = ["KUNCI_CADANGAN_DISINI"]
-
+# --- 2. MODELS & KEYS (VERSI TAHAN BANTING) ---
 def get_ai_response(prompt):
-    kunci = random.choice(DAFTAR_KUNCI)
-    genai.configure(api_key=kunci)
+    # Ambil daftar kunci dari secrets
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        return response.text if response else "⚠️ AI sedang sibuk."
+        keys = st.secrets["GEMINI_KEYS"]
+        # Pastikan keys adalah list, kalau cuma satu string kita bungkus jadi list
+        if isinstance(keys, str):
+            keys = [keys]
     except:
-        return "⚠️ Cek API Key."
+        return "❌ Kunci tidak ditemukan di Secrets!"
 
+    # Acak urutan kunci supaya kalau satu limit, coba yang lain
+    random.shuffle(keys)
+    
+    for kunci in keys:
+        try:
+            genai.configure(api_key=kunci)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
+            if response.text:
+                return response.text
+        except Exception:
+            continue # Coba kunci berikutnya kalau yang ini gagal
+            
+    return "⚠️ Semua kunci sedang limit/eror. Coba lagi nanti ya!"
 # --- 3. THEME & STYLING ---
 def apply_styling():
     st.markdown("""

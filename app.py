@@ -5,8 +5,9 @@ import plotly.graph_objects as go
 import io
 import random
 import google.generativeai as genai
+from datetime import datetime
 
-# --- 1. CONFIG UTAMA ---
+# --- 1. CONFIG (HANYA SATU DI ATAS & SET COLLAPSED) ---
 st.set_page_config(
     page_title="Studio Pricing Dashboard", 
     layout="wide", 
@@ -16,33 +17,56 @@ st.set_page_config(
 # --- 2. MODELS & KEYS ---
 try:
     DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
+    st.sidebar.success(f"Berhasil memuat {len(DAFTAR_KUNCI)} kunci!")
 except:
+    st.sidebar.error("Brankas Secrets kosong!")
     DAFTAR_KUNCI = ["KUNCI_CADANGAN_DISINI"]
 
 def get_ai_response(prompt):
-    if not DAFTAR_KUNCI: return "❌ API Key tidak ditemukan."
     kunci = random.choice(DAFTAR_KUNCI)
     genai.configure(api_key=kunci)
+    available_models = []
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        return response.text if response else "⚠️ AI sedang sibuk."
-    except Exception as e:
-        return f"⚠️ Error: {str(e)}"
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+    except:
+        available_models = ['models/gemini-1.5-flash', 'models/gemini-pro']
 
-# --- 3. THEME & STYLING ---
+    for m_name in available_models:
+        if 'gemini' in m_name:
+            try:
+                model = genai.GenerativeModel(model_name=m_name)
+                response = model.generate_content(
+                    prompt,
+                    safety_settings=[
+                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                    ]
+                )
+                if response and response.text:
+                    return response.text
+            except Exception:
+                continue
+    return "⚠️ Semua model gagal merespon."
+
+# --- 3. THEME & STYLING (STYLE ASLI KAMU) ---
 def apply_styling():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
     * { font-family: 'Plus Jakarta Sans', sans-serif; color: #4A4A4A; }
     .stApp { background-color: #FDFBFA; }
-    
+
+    /* PERBAIKAN SIDEBAR: Biar rapat saat ditutup */
     [data-testid="stSidebar"] { 
         background-color: #FFF0F3 !important; 
         border-right: 1px solid #FFD1DC; 
     }
-    
+    [data-testid="stSidebarNav"] { background-color: transparent !important; }
+
     .p-card { 
         background: white; 
         padding: 25px; 
@@ -57,15 +81,12 @@ def apply_styling():
         font-weight: 600 !important; 
         width: 100%; 
     }
-    
+
+    /* Style Tambahan Asli Kamu */
     .kpi-label { font-size: 11px; font-weight: 700; color: #BBB; text-transform: uppercase; letter-spacing: 0.8px; }
     .kpi-val { font-size: 24px; font-weight: 700; color: #D08C9F; display: block; }
-    
-    .strat-box { padding: 22px; border-radius: 18px; border: 1px solid #F0F0F0; text-align: center; height: 100%; }
+    .strat-box { padding: 22px; border-radius: 18px; border: 1px solid #F0F0F0; text-align: center; height: 100%; transition: 0.3s; }
     .strat-sweet { background-color: #F7F9F7; border: 2px solid #8BA888; box-shadow: 0 10px 20px rgba(139, 168, 136, 0.12); }
-    
-    /* Label Qty & Kolom */
-    .col-header { font-size: 12px; font-weight: 700; color: #D08C9F; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -75,35 +96,33 @@ apply_styling()
 if 'costs' not in st.session_state:
     st.session_state.costs = [{"item": "Bahan Utama", "price": 0, "qty": 1}]
 
-def add_row(): 
-    st.session_state.costs.append({"item": "", "price": 0, "qty": 1})
+def add_row(): st.session_state.costs.append({"item": "", "price": 0, "qty": 1})
 
-# --- 5. SIDEBAR (FITUR LENGKAP: AI, MAGIC, EXCEL) ---
+# --- 5. SIDEBAR (ISINYA SAMA PERSIS) ---
 with st.sidebar:
     st.markdown("### 🌸 Strategic Assistance")
-    st.caption("Bantu tentukan harga paling aman & menguntungkan.")
+    st.caption("Bantu tentukan harga paling aman & menguntungkan untuk produkmu.")
     st.markdown("---")
-    
+    st.markdown("#### 1️⃣ Mau Buat Apa Hari Ini?")
     intent_type = st.selectbox("Tujuan:", ["Koleksi Fashion", "Produk Beauty", "Food & Beverage", "Custom Project"])
     prod_name = st.text_input("Nama Produk:", placeholder="e.g. Linen Dress Summer")
+    st.markdown("---")
+    st.markdown("#### 🤖 AI Analysis - Material Suggestion")
     
     if prod_name:
         if st.button("✨ Dapatkan Saran AI"):
             with st.spinner("AI sedang berpikir..."):
-                prompt = f"Berikan saran singkat komponen biaya untuk produk {prod_name} kategori {intent_type}. Maks 3 poin."
+                prompt = f"Berikan saran singkat bahan untuk {prod_name} dalam kategori {intent_type}."
                 st.session_state.ai_res = get_ai_response(prompt)
-        
         if 'ai_res' in st.session_state:
-            st.info(st.session_state.ai_res)
-            
+            st.markdown(f"""<div style="background: white; border: 1px solid #D08C9F; padding: 15px; border-radius: 15px; margin-bottom: 10px;">
+                <div style="color:#D08C9F; font-weight:700; font-size:12px; margin-bottom:8px;">✨ Rekomendasi AI</div>
+                <div style="font-size:11px; color:#666; line-height:1.5;">{st.session_state.ai_res}</div>
+            </div>""", unsafe_allow_html=True)
             if st.button("🪄 Gunakan sebagai Rincian Biaya"):
-                st.session_state.costs = [
-                    {"item": "Bahan Utama Premium", "price": 0, "qty": 1},
-                    {"item": "Packaging & Label", "price": 0, "qty": 1},
-                    {"item": "Ongkos Produksi", "price": 0, "qty": 1}
-                ]
+                st.session_state.costs = [{"item": "Bahan Utama Premium", "price": 0, "qty": 1}, {"item": "Packaging & Label", "price": 0, "qty": 1}, {"item": "Ongkos Produksi", "price": 0, "qty": 1}]
                 st.rerun()
-
+    
     st.markdown("---")
     st.markdown("#### 📥 Import Excel")
     up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
@@ -115,22 +134,14 @@ with st.sidebar:
 # --- 6. MAIN CONTENT ---
 st.markdown(f"## {prod_name if prod_name else 'Pricing Planner'} ☁️")
 
-# STEP 1: COST INPUT
 st.markdown("### 🧮 Step 1: Cost Input")
 st.markdown("<div class='p-card'>", unsafe_allow_html=True)
-
-# Header untuk label Qty
-h1, h2, h3, h4 = st.columns([3, 2, 1, 0.5])
-h1.markdown("<div class='col-header'>Nama Item</div>", unsafe_allow_html=True)
-h2.markdown("<div class='col-header'>Harga Satuan</div>", unsafe_allow_html=True)
-h3.markdown("<div class='col-header'>Qty</div>", unsafe_allow_html=True)
-
 total_var = 0
 for i, row in enumerate(st.session_state.costs):
     c1, c2, c3, c4 = st.columns([3, 2, 1, 0.5])
-    with c1: st.session_state.costs[i]['item'] = st.text_input(f"n_{i}", row['item'], key=f"nm_{i}", label_visibility="collapsed")
-    with c2: st.session_state.costs[i]['price'] = st.number_input(f"p_{i}", value=int(row['price']), step=1000, key=f"pr_{i}", label_visibility="collapsed")
-    with c3: st.session_state.costs[i]['qty'] = st.number_input(f"q_{i}", value=int(row['qty']), step=1, key=f"qt_{i}", label_visibility="collapsed")
+    with c1: st.session_state.costs[i]['item'] = st.text_input(f"Item {i}", row['item'], key=f"nm_{i}", label_visibility="collapsed")
+    with c2: st.session_state.costs[i]['price'] = st.number_input(f"Prc {i}", value=int(row['price']), step=1000, key=f"pr_{i}", label_visibility="collapsed")
+    with c3: st.session_state.costs[i]['qty'] = st.number_input(f"Qty {i}", value=int(row['qty']), step=1, key=f"qt_{i}", label_visibility="collapsed")
     with c4: 
         if st.button("✕", key=f"del_{i}"):
             st.session_state.costs.pop(i); st.rerun()
@@ -138,44 +149,31 @@ for i, row in enumerate(st.session_state.costs):
 
 st.button("➕ Tambah Baris Biaya", on_click=add_row)
 st.markdown("---")
-
 cx1, cx2 = st.columns(2)
 fixed_cost = cx1.number_input("Biaya Tetap Bulanan (Rp)", value=1500000, step=50000)
 target_qty = cx2.number_input("Target Produksi (Unit)", value=50, min_value=1)
 hpp_unit = int(total_var + (fixed_cost / target_qty))
 
-st.markdown(f"""
-<div style="display: flex; gap: 20px; margin-top:15px;">
+st.markdown(f"""<div style="display: flex; gap: 20px; margin-top:15px;">
     <div style="flex:1"><span class="kpi-label">HPP Per Unit</span><span class="kpi-val">Rp {hpp_unit:,.0f}</span></div>
     <div style="flex:1"><span class="kpi-label">Total Pengeluaran</span><span class="kpi-val" style="color:#8BA888">Rp {(hpp_unit*target_qty):,.0f}</span></div>
 </div>""", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# STEP 2: EXPORT (BLOK PUTIH DIHAPUS TOTAL)
+# STEP 2: EXPORT
 st.markdown("### 📤 Step 2: Export & Finalization")
 st.markdown("<div class='p-card'>", unsafe_allow_html=True)
-
 safe_p, sweet_p, prem_p = int(round(hpp_unit*1.25,-2)), int(round(hpp_unit*1.45,-2)), int(round(hpp_unit*2.0,-2))
-
 output = io.BytesIO()
 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-    pd.DataFrame(st.session_state.costs).to_excel(writer, sheet_name='Rincian', index=False)
-
-st.download_button(
-    label="📥 Unduh Laporan Lengkap",
-    data=output.getvalue(),
-    file_name=f"Pricing_{prod_name}.xlsx"
-)
+    pd.DataFrame(st.session_state.costs).to_excel(writer, sheet_name='Rincian Biaya', index=False)
+st.download_button(label="📥 Unduh Laporan Lengkap", data=output.getvalue(), file_name="Report.xlsx")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# STEP 3: PRICING STRATEGY
+# STEP 3: STRATEGY (CARDS ASLI)
 st.markdown("### 💰 Step 3: Pricing Strategy")
 sc1, sc2, sc3 = st.columns(3)
-strats = [
-    ("SAFE", safe_p, "20%", "Harga aman tanpa rugi.", ""),
-    ("SWEET", sweet_p, "31%", "Harga ideal & seimbang.", "strat-sweet"),
-    ("PREMIUM", prem_p, "50%", "Positioning eksklusif.", "")
-]
+strats = [("SAFE", safe_p, "20%", "Harga aman tanpa rugi.", ""), ("SWEET", sweet_p, "31%", "Harga ideal & seimbang.", "strat-sweet"), ("PREMIUM", prem_p, "50%", "Positioning eksklusif.", "")]
 for i, (lbl, prc, mrg, dsc, cls) in enumerate(strats):
     with [sc1, sc2, sc3][i]:
         st.markdown(f"""<div class="strat-box {cls}">
@@ -185,7 +183,7 @@ for i, (lbl, prc, mrg, dsc, cls) in enumerate(strats):
             <div style="font-size:11px; color:#999; margin-top:8px;">{dsc}</div>
         </div>""", unsafe_allow_html=True)
 
-# STEP 4: VISUALS
+# STEP 4: VISUALS (GRAPH ASLI)
 st.markdown("### 📊 Step 4: Visual Insights")
 st.markdown("<div class='p-card'>", unsafe_allow_html=True)
 vi1, vi2 = st.columns(2)

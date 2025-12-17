@@ -7,14 +7,7 @@ import random
 import google.generativeai as genai
 from datetime import datetime
 
-# --- 1. CONFIG (HANYA SATU & COLLAPSED) ---
-st.set_page_config(
-    page_title="Studio Pricing Dashboard", 
-    layout="wide", 
-    initial_sidebar_state="collapsed"
-)
-
-# --- 2. MODELS & KEYS ---
+# --- 1. CONFIG & MODELS ---
 try:
     DAFTAR_KUNCI = st.secrets["GEMINI_KEYS"]
 except:
@@ -23,14 +16,25 @@ except:
 def get_ai_response(prompt):
     kunci = random.choice(DAFTAR_KUNCI)
     genai.configure(api_key=kunci)
+    available_models = []
     try:
-        model = genai.GenerativeModel(model_name='gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        return response.text if response else "⚠️ Gagal"
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
     except:
-        return "⚠️ Error API"
+        available_models = ['models/gemini-1.5-flash', 'models/gemini-pro']
+    for m_name in available_models:
+        if 'gemini' in m_name:
+            try:
+                model = genai.GenerativeModel(model_name=m_name)
+                response = model.generate_content(prompt)
+                if response and response.text: return response.text
+            except: continue
+    return "⚠️ AI Error."
 
-# --- 3. THEME & STYLING (ASLI KAMU) ---
+# --- 2. CORE SETTINGS ---
+st.set_page_config(page_title="Studio Pricing Dashboard", layout="wide", initial_sidebar_state="collapsed")
+
 def apply_styling():
     st.markdown("""
     <style>
@@ -39,38 +43,32 @@ def apply_styling():
     .stApp { background-color: #FDFBFA; }
     [data-testid="stSidebar"] { background-color: #FFF0F3 !important; border-right: 1px solid #FFD1DC; }
     .p-card { background: white; padding: 25px; border-radius: 20px; border: 1px solid #F3E5E9; box-shadow: 0 8px 24px rgba(208, 140, 159, 0.06); margin-bottom: 25px; }
+    .stButton>button { border-radius: 14px !important; font-weight: 600 !important; width: 100%; }
     .kpi-label { font-size: 11px; font-weight: 700; color: #BBB; text-transform: uppercase; letter-spacing: 0.8px; }
     .kpi-val { font-size: 24px; font-weight: 700; color: #D08C9F; display: block; }
-    .strat-box { padding: 22px; border-radius: 18px; border: 1px solid #F0F0F0; text-align: center; height: 100%; }
+    .strat-box { padding: 22px; border-radius: 18px; border: 1px solid #F0F0F0; text-align: center; height: 100%; transition: 0.3s; }
     .strat-sweet { background-color: #F7F9F7; border: 2px solid #8BA888; box-shadow: 0 10px 20px rgba(139, 168, 136, 0.12); }
-    .stButton>button { border-radius: 14px !important; font-weight: 600 !important; width: 100%; }
     </style>
     """, unsafe_allow_html=True)
 
 apply_styling()
 
-# --- 4. DATA ENGINE ---
+# --- 3. DATA ENGINE ---
 if 'costs' not in st.session_state:
     st.session_state.costs = [{"item": "Bahan Utama", "price": 0, "qty": 1}]
 
 def add_row(): st.session_state.costs.append({"item": "", "price": 0, "qty": 1})
 
-# --- 5. SIDEBAR ---
+# --- 4. SIDEBAR ---
 with st.sidebar:
     st.markdown("### 🌸 Strategic Assistance")
     intent_type = st.selectbox("Tujuan:", ["Koleksi Fashion", "Produk Beauty", "Food & Beverage", "Custom Project"])
     prod_name = st.text_input("Nama Produk:", placeholder="e.g. Linen Dress Summer")
-    
-    if st.button("✨ Dapatkan Saran AI"):
-        with st.spinner("Berpikir..."):
+    if prod_name:
+        if st.button("✨ Dapatkan Saran AI"):
             st.session_state.ai_res = get_ai_response(f"Saran bahan untuk {prod_name}")
-    
-    if 'ai_res' in st.session_state:
-        st.info(st.session_state.ai_res)
-        if st.button("🪄 Gunakan Rincian"):
-            st.session_state.costs = [{"item": "Bahan Utama", "price": 0, "qty": 1}, {"item": "Packaging", "price": 0, "qty": 1}]
-            st.rerun()
-
+        if 'ai_res' in st.session_state:
+            st.info(st.session_state.ai_res)
     st.markdown("---")
     up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
     if up_file:
@@ -78,18 +76,20 @@ with st.sidebar:
         st.session_state.costs = [{"item": str(r[0]), "price": int(r[1]), "qty": 1} for _, r in df_up.iterrows()]
         st.rerun()
 
-# --- 6. MAIN CONTENT ---
+# --- 5. MAIN CONTENT ---
 st.markdown(f"## {prod_name if prod_name else 'Pricing Planner'} ☁️")
 
-# STEP 1: COST INPUT (Blok putih di bawah ini sudah dihapus)
+# STEP 1: COST INPUT (BLOK PUTIH DIHAPUS)
 st.markdown("### 🧮 Step 1: Cost Input")
 st.markdown("<div class='p-card'>", unsafe_allow_html=True)
+
 total_var = 0
 for i, row in enumerate(st.session_state.costs):
     c1, c2, c3, c4 = st.columns([3, 2, 1, 0.5])
-    with c1: st.session_state.costs[i]['item'] = st.text_input(f"Item {i}", row['item'], key=f"nm_{i}", label_visibility="collapsed")
-    with c2: st.session_state.costs[i]['price'] = st.number_input(f"Prc {i}", value=int(row['price']), key=f"pr_{i}", label_visibility="collapsed")
-    with c3: st.session_state.costs[i]['qty'] = st.number_input(f"Qty {i}", value=int(row['qty']), key=f"qt_{i}", label_visibility="collapsed")
+    with c1: st.session_state.costs[i]['item'] = st.text_input(f"Item {i}", row['item'], key=f"nm_{i}", label_visibility="collapsed", placeholder="Nama Item")
+    with c2: st.session_state.costs[i]['price'] = st.number_input(f"Prc {i}", value=int(row['price']), step=1000, key=f"pr_{i}", label_visibility="collapsed", placeholder="Harga")
+    # TAMBAHAN: Label Qty muncul di dalam kotak (placeholder)
+    with c3: st.session_state.costs[i]['qty'] = st.number_input(f"Qty {i}", value=int(row['qty']), step=1, key=f"qt_{i}", label_visibility="collapsed")
     with c4: 
         if st.button("✕", key=f"del_{i}"):
             st.session_state.costs.pop(i); st.rerun()
@@ -108,33 +108,39 @@ st.markdown(f"""<div style="display: flex; gap: 20px; margin-top:15px;">
 </div>""", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# STEP 2: EXPORT (Blok putih di bawah ini sudah dihapus)
+# STEP 2: EXPORT (BLOK PUTIH DIHAPUS)
 st.markdown("### 📤 Step 2: Export & Finalization")
 st.markdown("<div class='p-card'>", unsafe_allow_html=True)
+
+# Langsung tampilkan tombol tanpa ada input kosong di atasnya
 safe_p, sweet_p, prem_p = int(round(hpp_unit*1.25,-2)), int(round(hpp_unit*1.45,-2)), int(round(hpp_unit*2.0,-2))
 output = io.BytesIO()
 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-    pd.DataFrame(st.session_state.costs).to_excel(writer, index=False)
-st.download_button(label="📥 Unduh Laporan Lengkap", data=output.getvalue(), file_name="Report.xlsx")
+    pd.DataFrame(st.session_state.costs).to_excel(writer, sheet_name='Biaya', index=False)
+st.download_button(label="📥 Unduh Laporan Lengkap", data=output.getvalue(), file_name=f"Report_{prod_name}.xlsx")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# STEP 3: STRATEGY
+# STEP 3: STRATEGY (LAYOUT ASLI)
 st.markdown("### 💰 Step 3: Pricing Strategy")
 sc1, sc2, sc3 = st.columns(3)
-strats = [("SAFE", safe_p, "20%", "Harga aman.", ""), ("SWEET", sweet_p, "31%", "Ideal.", "strat-sweet"), ("PREMIUM", prem_p, "50%", "Eksklusif.", "")]
+strats = [("SAFE", safe_p, "20%", "Harga aman."), ("SWEET", sweet_p, "31%", "Harga ideal.", "strat-sweet"), ("PREMIUM", prem_p, "50%", "Eksklusif.", "")]
 for i, (lbl, prc, mrg, dsc, cls) in enumerate(strats):
     with [sc1, sc2, sc3][i]:
-        st.markdown(f'<div class="strat-box {cls}"><span class="kpi-label">{lbl}</span><span class="kpi-val">Rp {prc:,.0f}</span><div style="color:#8BA888; font-weight:700;">Margin: {mrg}</div></div>', unsafe_allow_html=True)
+        st.markdown(f"""<div class="strat-box {cls}">
+            <span class="kpi-label">{lbl}</span><span class="kpi-val">Rp {prc:,.0f}</span>
+            <div style="color:#8BA888; font-weight:700; font-size:13px;">Margin: {mrg}</div>
+        </div>""", unsafe_allow_html=True)
 
-# STEP 4: VISUALS
+# STEP 4: VISUALS (LAYOUT ASLI)
 st.markdown("### 📊 Step 4: Visual Insights")
 st.markdown("<div class='p-card'>", unsafe_allow_html=True)
-v1, v2 = st.columns(2)
-with v1:
+vi1, vi2 = st.columns(2)
+with vi1:
     fig = go.Figure(data=[go.Bar(x=['Safe', 'Sweet', 'Premium'], y=[safe_p, sweet_p, prem_p], marker_color='#D08C9F', text=[f"Rp {x:,.0f}" for x in [safe_p, sweet_p, prem_p]], textposition='auto')])
     st.plotly_chart(fig, use_container_width=True)
-with v2:
+with vi2:
     x_b = np.linspace(0, target_qty*2, 20); y_r = sweet_p * x_b; y_c = fixed_cost + (total_var * x_b)
-    fig2 = go.Figure(); fig2.add_trace(go.Scatter(x=x_b, y=y_r, name="Revenue", line=dict(color='#8BA888'))); fig2.add_trace(go.Scatter(x=x_b, y=y_c, name="Cost", line=dict(color='#D08C9F')))
+    fig2 = go.Figure(); fig2.add_trace(go.Scatter(x=x_b, y=y_r, name="Revenue", line=dict(color='#8BA888', width=3)))
+    fig2.add_trace(go.Scatter(x=x_b, y=y_c, name="Cost", line=dict(color='#D08C9F', width=2)))
     st.plotly_chart(fig2, use_container_width=True)
 st.markdown("</div>", unsafe_allow_html=True)

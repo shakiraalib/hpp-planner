@@ -18,11 +18,12 @@ def get_ai_response(prompt):
     kunci = random.choice(DAFTAR_KUNCI)
     genai.configure(api_key=kunci)
     
-    model_variants = ['gemini-1.5-flash', 'gemini-pro']
+    # Menambahkan prefix 'models/' secara eksplisit untuk menghindari 404
+    model_variants = ['models/gemini-1.5-flash', 'models/gemini-pro']
     
     for m_name in model_variants:
         try:
-            model = genai.GenerativeModel(m_name)
+            model = genai.GenerativeModel(model_name=m_name)
             response = model.generate_content(
                 prompt,
                 safety_settings=[
@@ -36,10 +37,11 @@ def get_ai_response(prompt):
             if response and response.text:
                 return response.text
         except Exception as e:
-            st.sidebar.error(f"Sistem mencatat: {str(e)[:50]}...")
+            # Menampilkan error singkat di sidebar untuk pantauan
+            st.sidebar.warning(f"Coba {m_name}: {str(e)[:40]}")
             continue
             
-    return "⚠️ Limit tercapai. Coba lagi dalam 60 detik."
+    return "⚠️ Masalah koneksi API (404/Limit). Tunggu 1 menit lalu coba lagi ya!"
 
 # --- 2. CORE SETTINGS & THEME ---
 st.set_page_config(page_title="Studio Pricing Dashboard", layout="wide", initial_sidebar_state="expanded")

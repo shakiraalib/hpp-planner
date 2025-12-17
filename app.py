@@ -22,36 +22,39 @@ def get_ai_response(prompt):
     except:
         return "❌ Kunci tidak ditemukan di Secrets!"
 
-    for kunci in keys:
-        try:
-            genai.configure(api_key=kunci)
-            # Pakai model flash terbaru yang lebih ringan & stabil
-            model = genai.GenerativeModel('gemini-1.5-flash')
+    # Pilih kunci secara acak
+    kunci = random.choice(keys)
+    
+    try:
+        genai.configure(api_key=kunci)
+        
+        # SULAP 404: Kita cari otomatis model apa yang tersedia untuk kunci ini
+        available_models = [m.name for m in genai.list_models() 
+                           if 'generateContent' in m.supported_generation_methods]
+        
+        # Prioritas pakai gemini-1.5-flash (paling stabil)
+        model_name = 'models/gemini-1.5-flash' if 'models/gemini-1.5-flash' in available_models else available_models[0]
+        
+        model = genai.GenerativeModel(model_name=model_name)
+        
+        response = model.generate_content(
+            prompt,
+            safety_settings=[
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            ]
+        )
+        
+        if response and response.text:
+            return response.text
+        else:
+            return "⚠️ AI tidak memberikan jawaban (mungkin terfilter)."
             
-            response = model.generate_content(
-                prompt,
-                # INI PENTING: Supaya AI tidak gampang memblokir jawaban
-                safety_settings={
-                    "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-                    "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
-                    "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-                    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
-                }
-            )
-            
-            if response.text:
-                return response.text
-            else:
-                return "⚠️ AI merespon tapi tidak ada teks (mungkin terfilter)."
-        except Exception as e:
-            # Jika error karena kunci (Invalid API Key), kita lanjut ke kunci berikutnya
-            if "API_KEY_INVALID" in str(e):
-                continue
-            # Jika error karena limit, kita beri tahu alasannya
-            return f"⚠️ Masalah teknis: {str(e)[:50]}..."
-            
-    return "⚠️ Semua kunci gagal. Pastikan API Key di Secrets sudah benar (copy-paste lengkap)."
-
+    except Exception as e:
+        # Menangkap pesan error agar kita tahu persis masalahnya
+        return f"⚠️ Masalah teknis: {str(e)}"
 # --- 3. THEME & STYLING ---
 def apply_styling():
     st.markdown("""

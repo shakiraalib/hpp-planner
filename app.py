@@ -102,8 +102,15 @@ with st.sidebar:
     if prod_name:
         if st.button("✨ Dapatkan Saran AI"):
             with st.spinner("Sedang menghitung..."):
-                prompt = f"Berikan rincian bahan dan harga untuk membuat {prod_name} dalam bisnis {intent_type}."
-                st.session_state.ai_res = get_ai_response(prompt)
+                prompt = f"""
+                Kamu adalah ahli keuangan UMKM. Berikan estimasi biaya produksi untuk "{prod_name}" dalam kategori {intent_type}.
+                PENTING: Berikan jawaban dalam format daftar seperti ini agar bisa saya salin:
+                - Bahan Utama: [Angka Harga]
+                - Bahan Pendukung: [Angka Harga]
+                - Packaging: [Angka Harga]
+                - Ongkos Kerja: [Angka Harga]
+                Serta berikan tips singkat untuk menekan biaya tersebut.
+                """
         
         # JIKA AI SUDAH MENJAWAB, TAMPILKAN HASIL DAN TOMBOL INPUT
         if 'ai_res' in st.session_state:
@@ -114,12 +121,24 @@ with st.sidebar:
             
             # TOMBOL INI HARUS SEJAJAR DENGAN TULISAN DI ATASNYA
             if st.button("🪄 Gunakan sebagai Rincian Biaya"):
+                import re # Untuk mencari angka otomatis
+                
+                # Mengambil semua angka dari teks AI
+                find_numbers = re.findall(r'Rp\s?(\d+(?:\.\d+)?)', st.session_state.ai_res.replace('.', ''))
+                if not find_numbers:
+                    find_numbers = re.findall(r'(\d+(?:\.\d+)?)', st.session_state.ai_res.replace('.', ''))
+                
+                # Jika AI memberikan angka, kita masukkan ke tabel
+                # Jika tidak ada angka, kita pakai default 0
+                prices = [int(n) for n in find_numbers if int(n) > 100] # Ambil angka yang masuk akal sebagai harga
+                
                 st.session_state.costs = [
-                    {"item": "Bahan Utama", "price": 0, "qty": 1}, 
-                    {"item": "Bahan Pendukung", "price": 0, "qty": 1}, 
-                    {"item": "Packaging", "price": 0, "qty": 1},
-                    {"item": "Ongkos Kerja", "price": 0, "qty": 1}
+                    {"item": "Bahan Utama", "price": prices[0] if len(prices) > 0 else 0, "qty": 1}, 
+                    {"item": "Bahan Pendukung", "price": prices[1] if len(prices) > 1 else 0, "qty": 1}, 
+                    {"item": "Packaging", "price": prices[2] if len(prices) > 2 else 0, "qty": 1},
+                    {"item": "Ongkos Kerja", "price": prices[3] if len(prices) > 3 else 0, "qty": 1}
                 ]
+                st.success("✅ Berhasil! Harga estimasi AI telah dimasukkan ke tabel.")
                 st.rerun()
 
     st.markdown("---")

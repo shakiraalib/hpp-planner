@@ -26,8 +26,20 @@ def get_ai_response(prompt):
     
     try:
         genai.configure(api_key=kunci)
-        # Ambil model flash secara default (paling stabil untuk harga)
-        model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+        
+        # --- PERBAIKAN SULAP 404 ---
+        # Kita list semua model yang tersedia untuk API Key ini
+        available_models = [m.name for m in genai.list_models() 
+                           if 'generateContent' in m.supported_generation_methods]
+        
+        # Cari model yang paling bagus (1.5-flash), kalau tidak ada pakai yang tersedia pertama kali
+        model_to_use = 'models/gemini-1.5-flash'
+        if model_to_use not in available_models:
+            # Jika 1.5-flash tidak ketemu, kita ambil model apa saja yang ada 'gemini' di namanya
+            gemini_models = [m for m in available_models if 'gemini' in m]
+            model_to_use = gemini_models[0] if gemini_models else available_models[0]
+        
+        model = genai.GenerativeModel(model_name=model_to_use)
         
         response = model.generate_content(
             prompt,
@@ -42,7 +54,7 @@ def get_ai_response(prompt):
         if response and response.text:
             return response.text
         else:
-            return "⚠️ AI tidak memberikan jawaban."
+            return "⚠️ AI tidak memberikan jawaban (mungkin terfilter)."
             
     except Exception as e:
         return f"⚠️ Masalah teknis: {str(e)}"

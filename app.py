@@ -122,15 +122,20 @@ with st.sidebar:
                 <div style="font-size:11px; color:#666; line-height:1.5; white-space: pre-wrap;">{st.session_state.ai_res}</div>
             </div>""", unsafe_allow_html=True)
             
-            if st.button("🪄 Gunakan sebagai Rincian Biaya"):
-                # Template otomatis agar user tinggal isi angka dari saran AI
-                st.session_state.costs = [
-                    {"item": "Bahan Utama", "price": 0, "qty": 1}, 
-                    {"item": "Bahan Pendukung", "price": 0, "qty": 1}, 
-                    {"item": "Packaging", "price": 0, "qty": 1},
-                    {"item": "Ongkos Kerja", "price": 0, "qty": 1}
-                ]
-                st.rerun()
+            if st.button("✨ Dapatkan Saran AI"):
+            with st.spinner("Sedang menghitung..."):
+                # Perintah diperketat agar AI kasih angka mentah juga
+                prompt = f"""
+                Kamu adalah konsultan produksi {intent_type}. 
+                Berapa estimasi biaya produksi 1 pcs "{prod_name}" di Indonesia?
+                Sebutkan estimasi harga mentahnya saja untuk:
+                1. Bahan Utama: Rp...
+                2. Bahan Pendukung: Rp...
+                3. Packaging: Rp...
+                4. Ongkos Kerja: Rp...
+                Tuliskan penjelasan singkat setelahnya.
+                """
+                st.session_state.ai_res = get_ai_response(prompt)
     
     st.markdown("---")
     st.markdown("#### 📥 Import Excel")

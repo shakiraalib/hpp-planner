@@ -89,56 +89,61 @@ def add_row():
     st.session_state.costs.append({"item": "", "price": 0, "qty": 1})
 
 # --- 5. SIDEBAR ---
-with st.sidebar:
-    st.markdown("### 🌸 Strategic Assistance")
-    st.caption("Bantu tentukan harga paling aman & menguntungkan.")
-    st.markdown("---")
-    st.markdown("#### 1️⃣ Mau Buat Apa Hari Ini?")
-    intent_type = st.selectbox("Tujuan:", ["Koleksi Fashion", "Produk Beauty", "Food & Beverage", "Custom Project"])
-    prod_name = st.text_input("Nama Produk:", placeholder="e.g. Linen Dress Summer")
-    st.markdown("---")
-    st.markdown("#### 🤖 AI Analysis")
-    
-   if prod_name:
-        # TOMBOL 1: DAPATKAN SARAN
-        if st.button("✨ Dapatkan Saran AI"):
-            with st.spinner("Sedang menghitung..."):
-                try:
-                    # Prompt yang meminta format angka bersih
-                    prompt = f"Berapa estimasi biaya produksi {prod_name}? Sebutkan dalam format: 1. Bahan Utama: Rp... 2. Bahan Pendukung: Rp... 3. Packaging: Rp... 4. Ongkos Kerja: Rp..."
-                    res = get_ai_response(prompt)
-                    st.session_state.ai_res = res
-                    st.rerun() # Paksa refresh supaya teks muncul
-                except Exception as e:
-                    st.error(f"Gagal koneksi AI: {e}")
+    with st.sidebar:
+        st.markdown("### 🌸 Strategic Assistance")
+        st.caption("Bantu tentukan harga paling aman & menguntungkan.")
+        st.markdown("---")
+        
+        st.markdown("#### 1️⃣ Mau Buat Apa Hari Ini?")
+        intent_type = st.selectbox("Tujuan:", ["Koleksi Fashion", "Produk Beauty", "Food & Beverage", "Custom Project"])
+        prod_name = st.text_input("Nama Produk:", placeholder="e.g. Linen Dress Summer")
+        
+        st.markdown("---")
+        st.markdown("#### 🤖 AI Analysis")
+        
+        if prod_name:
+            if st.button("✨ Dapatkan Saran AI"):
+                with st.spinner("Sedang menghitung..."):
+                    try:
+                        prompt = f"Berapa estimasi biaya produksi {prod_name}? Sebutkan dalam format: 1. Bahan Utama: Rp... 2. Bahan Pendukung: Rp... 3. Packaging: Rp... 4. Ongkos Kerja: Rp..."
+                        res = get_ai_response(prompt)
+                        st.session_state.ai_res = res
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Gagal koneksi AI: {e}")
 
-        # TAMPILKAN HASIL JIKA ADA
-        if 'ai_res' in st.session_state:
-            st.info(st.session_state.ai_res)
-            
-            # TOMBOL 2: MASUKKAN KE TABEL
-            if st.button("🪄 Gunakan sebagai Rincian Biaya"):
-                import re
-                # Cari angka saja dari teks AI
-                angka = re.findall(r'\d+', st.session_state.ai_res.replace('.', ''))
+            if 'ai_res' in st.session_state:
+                st.info(st.session_state.ai_res)
                 
-                # Masukkan ke tabel (ambil 4 angka pertama yang ditemukan)
-                st.session_state.costs = [
-                    {"item": "Bahan Utama (Saran AI)", "price": int(angka[0]) if len(angka) > 0 else 0, "qty": 1},
-                    {"item": "Bahan Pendukung", "price": int(angka[1]) if len(angka) > 1 else 0, "qty": 1},
-                    {"item": "Packaging", "price": int(angka[2]) if len(angka) > 2 else 0, "qty": 1},
-                    {"item": "Ongkos Kerja", "price": int(angka[3]) if len(angka) > 3 else 0, "qty": 1}
-                ]
-                st.success("Tabel diperbarui!")
-                st.rerun()
+                if st.button("🪄 Gunakan sebagai Rincian Biaya"):
+                    import re
+                    # Ambil angka saja (hilangkan titik pemisah ribuan dulu)
+                    raw_text = st.session_state.ai_res.replace('.', '')
+                    angka = re.findall(r'\d+', raw_text)
+                    
+                    # Masukkan ke tabel (pastikan angka > 100 agar bukan qty)
+                    prices = [int(a) for a in angka if int(a) > 100]
+                    
+                    st.session_state.costs = [
+                        {"item": "Bahan Utama (AI)", "price": prices[0] if len(prices) > 0 else 0, "qty": 1},
+                        {"item": "Bahan Pendukung (AI)", "price": prices[1] if len(prices) > 1 else 0, "qty": 1},
+                        {"item": "Packaging (AI)", "price": prices[2] if len(prices) > 2 else 0, "qty": 1},
+                        {"item": "Ongkos Kerja (AI)", "price": prices[3] if len(prices) > 3 else 0, "qty": 1}
+                    ]
+                    st.success("Tabel biaya berhasil diisi!")
+                    st.rerun()
 
-    st.markdown("---")
-    st.markdown("#### 📥 Import Excel")
-    up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
-    if up_file:
-        df_up = pd.read_excel(up_file)
-        st.session_state.costs = [{"item": str(r[0]), "price": int(r[1]), "qty": 1} for _, r in df_up.iterrows()]
-        st.rerun()
+        st.markdown("---")
+        st.markdown("#### 📥 Import Excel")
+        up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
+        if up_file:
+            try:
+                df_up = pd.read_excel(up_file)
+                st.session_state.costs = [{"item": str(r[0]), "price": int(r[1]), "qty": 1} for _, r in df_up.iterrows()]
+                st.success("Data Excel berhasil dimuat!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Gagal membaca Excel: {e}")
 
 # --- 6. MAIN CONTENT ---
 st.markdown(f"## {prod_name if prod_name else 'Pricing Planner'} ☁️")

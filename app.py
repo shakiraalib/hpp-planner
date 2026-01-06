@@ -136,16 +136,26 @@ with st.sidebar:
                 st.rerun()
 
     st.markdown("---")
-    st.markdown("#### 📥 Import Excel")
-    up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
-    if up_file:
-        try:
-            df_up = pd.read_excel(up_file)
-            st.session_state.costs = [{"item": str(r[0]), "price": int(r[1]), "qty": 1} for _, r in df_up.iterrows()]
-            st.success("Data Excel berhasil dimuat!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Gagal membaca Excel: {e}")
+        st.markdown("#### 📥 Import Excel")
+        up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
+        
+        if up_file:
+            # Gunakan fungsi internal untuk membaca agar lebih cepat
+            @st.cache_data(show_spinner=False)
+            def load_excel(file):
+                return pd.read_excel(file)
+                
+            try:
+                df_up = load_excel(up_file)
+                # Ambil data dan masukkan ke session state
+                st.session_state.costs = [
+                    {"item": str(r[0]), "price": int(r[1]), "qty": 1} 
+                    for _, r in df_up.iterrows()
+                ]
+                st.success("Data Excel berhasil dimuat!")
+                # Jangan pakai st.rerun berlebihan jika tidak perlu
+            except Exception as e:
+                st.error(f"Gagal membaca Excel: {e}")
 
 # --- 6. MAIN CONTENT ---
 st.markdown(f"## {prod_name if prod_name else 'Pricing Planner'} ☁️")

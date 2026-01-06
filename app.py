@@ -221,7 +221,7 @@ for i, (lbl, prc, mrg) in enumerate(strats):
 # Tampilkan ringkasan pilihan
 st.success(f"Kamu memilih strategi **{selected_strat}**. Harga Jual Final: **Rp {final_price:,.0f}**")
 
-# --- STEP 4: VISUAL STRATEGIC INSIGHTS ---
+# --- STEP 4: STRATEGIC VISUAL INSIGHTS ---
 st.markdown("### 📊 Step 4: Strategic Visual Insights")
 st.markdown("<div class='flower-spacer'>✨ Analisis Kesehatan Bisnis & Proyeksi Laba ✨</div>", unsafe_allow_html=True)
 
@@ -229,44 +229,57 @@ st.markdown("<div class='p-card'>", unsafe_allow_html=True)
 vcol1, vcol2 = st.columns(2)
 
 with vcol1:
-    st.markdown("#### 1. Struktur Biaya Produksi")
+    st.markdown("#### 1. Struktur Modal Bulanan")
+    # Menghitung total biaya untuk target produksi tertentu
+    total_modal_bahan = total_var * target_qty
     df_pie = pd.DataFrame({
-        'Kategori': ['Biaya Variabel (HPP)', 'Biaya Tetap (Operasional)'],
-        'Nilai': [total_var * target_qty, fixed_cost]
+        'Kategori': ['Modal Bahan (Variabel)', 'Biaya Operasional (Tetap)'],
+        'Nilai': [total_modal_bahan, fixed_cost]
     })
-    fig_pie = px.pie(df_pie, values='Nilai', names='Kategori', hole=0.5, 
-                     color_discrete_sequence=['#D08C9F', '#FFD1DC'])
-    fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300)
+    
+    # Membuat Pie Chart (Donut)
+    fig_pie = px.pie(
+        df_pie, 
+        values='Nilai', 
+        names='Kategori', 
+        hole=0.5, 
+        color_discrete_sequence=['#D08C9F', '#FFD1DC']
+    )
+    fig_pie.update_layout(margin=dict(t=30, b=0, l=0, r=0), height=350)
     st.plotly_chart(fig_pie, use_container_width=True)
-    st.caption("Melihat seberapa besar porsi biaya operasional dibanding biaya bahan.")
+    st.caption("Porsi pengeluaran: Bahan baku vs Biaya tetap.")
 
 with vcol2:
-    st.markdown("#### 2. Proyeksi Laba Bersih (Target)")
-    # Hitung total modal vs total laba berdasarkan strategi yang dipilih di Step 3
-    total_modal = (total_var * target_qty) + fixed_cost
-    total_omzet = final_p * target_qty
-    laba_bersih = total_omzet - total_modal
+    st.markdown("#### 2. Proyeksi Laba Bersih vs Modal")
+    # Logika Matematika Bisnis
+    total_pengeluaran = (total_var * target_qty) + fixed_cost
+    total_pendapatan = final_p * target_qty # final_p diambil dari strategi yang kamu klik di radio button
+    total_laba_bersih = total_pendapatan - total_pengeluaran
     
+    # Grafik Batang Bertumpuk (Stacked Bar)
     fig_profit = go.Figure(data=[
-        go.Bar(name='Total Modal', x=['Analisis Laba'], y=[total_modal], marker_color='#FFD1DC'),
-        go.Bar(name='Laba Bersih', x=['Analisis Laba'], y=[laba_bersih], marker_color='#8BA888')
+        go.Bar(name='Total Modal', x=['Proyeksi'], y=[total_pengeluaran], marker_color='#FFD1DC'),
+        go.Bar(name='Laba Bersih', x=['Proyeksi'], y=[total_laba_bersih], marker_color='#8BA888')
     ])
-    fig_profit.update_layout(barmode='stack', height=300, margin=dict(t=0, b=0, l=0, r=0), plot_bgcolor='rgba(0,0,0,0)')
+    fig_profit.update_layout(
+        barmode='stack', 
+        height=350, 
+        margin=dict(t=30, b=0, l=0, r=0), 
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
     st.plotly_chart(fig_profit, use_container_width=True)
-    st.caption(f"Jika target {target_qty} unit terjual, perkiraan laba bersih: Rp {laba_bersih:,.0f}")
+    st.caption(f"Jika target terjual, laba bersihmu: Rp {total_laba_bersih:,.0f}")
 
 st.markdown("---")
-
-# --- 3. Titik Balik Modal (BEP) ---
 st.markdown("#### 3. Grafik Break Even Point (BEP)")
-x_range = np.linspace(0, target_qty * 1.5, 20)
-y_rev = final_p * x_range
-y_cost = fixed_cost + (total_var * x_range)
+
+x_bep = np.linspace(0, target_qty * 1.5, 20)
+y_revenue = final_p * x_bep
+y_total_cost = fixed_cost + (total_var * x_bep)
 
 fig_bep = go.Figure()
-fig_bep.add_trace(go.Scatter(x=x_range, y=y_rev, name="Total Pendapatan", line=dict(color='#8BA888', width=3)))
-fig_bep.add_trace(go.Scatter(x=x_range, y=y_cost, name="Total Biaya", line=dict(color='#D08C9F', width=2)))
-fig_bep.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', 
-                      xaxis_title="Jumlah Unit Terjual", yaxis_title="Rupiah")
+fig_bep.add_trace(go.Scatter(x=x_bep, y=y_revenue, name="Uang Masuk", line=dict(color='#8BA888', width=3)))
+fig_bep.add_trace(go.Scatter(x=x_bep, y=y_total_cost, name="Total Biaya", line=dict(color='#D08C9F', width=2)))
+fig_bep.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', xaxis_title="Unit Terjual", yaxis_title="Rupiah")
 st.plotly_chart(fig_bep, use_container_width=True)
 st.markdown("</div>", unsafe_allow_html=True)

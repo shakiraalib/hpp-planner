@@ -1,243 +1,128 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import io
-import random
+import plotly.express as px
 import google.generativeai as genai
-from datetime import datetime
+import io
+import re
 
-# --- 1. CONFIG ---
-st.set_page_config(
-    page_title="Studio Pricing Dashboard", 
-    layout="wide", 
-    initial_sidebar_state="collapsed"
-)
+# --- 1. KONFIGURASI HALAMAN ---
+st.set_page_config(page_title="Studio Pricing Dashboard", layout="wide")
 
-# --- 2. MODELS & KEYS (VERSI TAHAN BANTING) ---
+# --- 2. FUNGSI AI ---
 def get_ai_response(prompt):
     try:
-        keys = st.secrets["GEMINI_KEYS"]
-        if isinstance(keys, str): keys = [keys]
-    except:
-        return "❌ Kunci tidak ditemukan di Secrets!"
-
-    # Pilih kunci secara acak
-    kunci = random.choice(keys)
-    
-    try:
-        genai.configure(api_key=kunci)
-        
-        # SULAP 404: Kita cari otomatis model apa yang tersedia untuk kunci ini
-        available_models = [m.name for m in genai.list_models() 
-                           if 'generateContent' in m.supported_generation_methods]
-        
-        # Prioritas pakai gemini-1.5-flash (paling stabil)
-        model_name = 'models/gemini-1.5-flash' if 'models/gemini-1.5-flash' in available_models else available_models[0]
-        
-        model = genai.GenerativeModel(model_name=model_name)
-        
-        response = model.generate_content(
-            prompt,
-            safety_settings=[
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-            ]
-        )
-        
-        if response and response.text:
-            return response.text
-        else:
-            return "⚠️ AI tidak memberikan jawaban (mungkin terfilter)."
-            
+        # Mengambil key dari Streamlit Secrets
+        api_key = st.secrets["GEMINI_KEYS"]
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return response.text
     except Exception as e:
-        # Menangkap pesan error agar kita tahu persis masalahnya
-        return f"⚠️ Masalah teknis: {str(e)}"
+        return f"❌ Error: {str(e)}"
 
-# --- 3. THEME & STYLING ---
-def apply_styling():
-    st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-    * { font-family: 'Plus Jakarta Sans', sans-serif; color: #4A4A4A; }
-    .stApp { background-color: #FDFBFA; }
-    [data-testid="stSidebar"] { background-color: #FFF0F3 !important; border-right: 1px solid #FFD1DC; }
-    .p-card { background: white; padding: 25px; border-radius: 20px; border: 1px solid #F3E5E9; box-shadow: 0 8px 24px rgba(208, 140, 159, 0.06); margin-bottom: 25px; }
-    .stButton>button { border-radius: 14px !important; font-weight: 600 !important; width: 100%; }
-    .kpi-label { font-size: 11px; font-weight: 700; color: #BBB; text-transform: uppercase; }
-    .kpi-val { font-size: 24px; font-weight: 700; color: #D08C9F; display: block; }
-    .strat-box { padding: 22px; border-radius: 18px; border: 1px solid #F0F0F0; text-align: center; height: 100%; }
-    .strat-sweet { background-color: #F7F9F7; border: 2px solid #8BA888; box-shadow: 0 10px 20px rgba(139, 168, 136, 0.12); }
-    
-    .table-header { font-size: 12px; font-weight: 700; color: #D08C9F; margin-bottom: 8px; }
-    .flower-spacer { 
-        background: rgba(255, 240, 243, 0.4); padding: 8px; border-radius: 12px; 
-        text-align: center; color: #D08C9F; font-size: 13px; margin-bottom: 15px; border: 1px dashed #FFD1DC;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-apply_styling()
-
-# --- 4. DATA ENGINE ---
+# --- 3. INISIALISASI STATE ---
 if 'costs' not in st.session_state:
-    st.session_state.costs = [{"item": "Bahan Utama", "price": 0, "qty": 1}]
+    st.session_state.costs = []
+if 'ai_res' not in st.session_state:
+    st.session_state.ai_res = ""
 
-def add_row(): 
-    st.session_state.costs.append({"item": "", "price": 0, "qty": 1})
+# Variabel default agar tidak NameError
+prod_name = ""
 
-# --- 5. SIDEBAR ---
-    with st.sidebar:
-        st.markdown("### 🌸 Strategic Assistance")
-        st.caption("Bantu tentukan harga paling aman & menguntungkan.")
-        st.markdown("---")
+# --- 4. SIDEBAR ---
+with st.sidebar:
+    st.markdown("### 🌸 Strategic Assistance")
+    st.caption("Bantu tentukan harga paling aman & menguntungkan.")
+    st.markdown("---")
+    
+    st.markdown("#### 1️⃣ Produk")
+    intent_type = st.selectbox("Kategori:", ["Koleksi Fashion", "Produk Beauty", "Food & Beverage", "Custom Project"])
+    prod_name = st.text_input("Nama Produk:", placeholder="e.g. Linen Dress")
+    
+    st.markdown("---")
+    st.markdown("#### 🤖 AI Analysis")
+    
+    if prod_name:
+        if st.button("✨ Dapatkan Saran AI"):
+            with st.spinner("Sedang menghitung..."):
+                prompt = f"Berapa estimasi biaya produksi {prod_name} untuk bisnis {intent_type}? Berikan angka dalam format Rp... untuk Bahan Utama, Bahan Pendukung, Packaging, dan Ongkos Kerja."
+                st.session_state.ai_res = get_ai_response(prompt)
         
-        st.markdown("#### 1️⃣ Mau Buat Apa Hari Ini?")
-        intent_type = st.selectbox("Tujuan:", ["Koleksi Fashion", "Produk Beauty", "Food & Beverage", "Custom Project"])
-        prod_name = st.text_input("Nama Produk:", placeholder="e.g. Linen Dress Summer")
-        
-        st.markdown("---")
-        st.markdown("#### 🤖 AI Analysis")
-        
-        if prod_name:
-            if st.button("✨ Dapatkan Saran AI"):
-                with st.spinner("Sedang menghitung..."):
-                    try:
-                        prompt = f"Berapa estimasi biaya produksi {prod_name}? Sebutkan dalam format: 1. Bahan Utama: Rp... 2. Bahan Pendukung: Rp... 3. Packaging: Rp... 4. Ongkos Kerja: Rp..."
-                        res = get_ai_response(prompt)
-                        st.session_state.ai_res = res
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Gagal koneksi AI: {e}")
-
-            if 'ai_res' in st.session_state:
-                st.info(st.session_state.ai_res)
+        if st.session_state.ai_res:
+            st.info(st.session_state.ai_res)
+            
+            if st.button("🪄 Gunakan sebagai Rincian Biaya"):
+                # Mencari angka dalam teks AI
+                raw_text = st.session_state.ai_res.replace('.', '').replace(',', '')
+                angka = re.findall(r'\d+', raw_text)
+                prices = [int(a) for a in angka if int(a) > 500] # Ambil angka yang masuk akal sebagai harga
                 
-                if st.button("🪄 Gunakan sebagai Rincian Biaya"):
-                    import re
-                    # Ambil angka saja (hilangkan titik pemisah ribuan dulu)
-                    raw_text = st.session_state.ai_res.replace('.', '')
-                    angka = re.findall(r'\d+', raw_text)
-                    
-                    # Masukkan ke tabel (pastikan angka > 100 agar bukan qty)
-                    prices = [int(a) for a in angka if int(a) > 100]
-                    
-                    st.session_state.costs = [
-                        {"item": "Bahan Utama (AI)", "price": prices[0] if len(prices) > 0 else 0, "qty": 1},
-                        {"item": "Bahan Pendukung (AI)", "price": prices[1] if len(prices) > 1 else 0, "qty": 1},
-                        {"item": "Packaging (AI)", "price": prices[2] if len(prices) > 2 else 0, "qty": 1},
-                        {"item": "Ongkos Kerja (AI)", "price": prices[3] if len(prices) > 3 else 0, "qty": 1}
-                    ]
-                    st.success("Tabel biaya berhasil diisi!")
-                    st.rerun()
-
-        st.markdown("---")
-        st.markdown("#### 📥 Import Excel")
-        up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
-        if up_file:
-            try:
-                df_up = pd.read_excel(up_file)
-                st.session_state.costs = [{"item": str(r[0]), "price": int(r[1]), "qty": 1} for _, r in df_up.iterrows()]
-                st.success("Data Excel berhasil dimuat!")
+                st.session_state.costs = [
+                    {"item": "Bahan Utama (AI)", "price": prices[0] if len(prices) > 0 else 0, "qty": 1},
+                    {"item": "Bahan Pendukung (AI)", "price": prices[1] if len(prices) > 1 else 0, "qty": 1},
+                    {"item": "Packaging (AI)", "price": prices[2] if len(prices) > 2 else 0, "qty": 1},
+                    {"item": "Ongkos Kerja (AI)", "price": prices[3] if len(prices) > 3 else 0, "qty": 1}
+                ]
                 st.rerun()
-            except Exception as e:
-                st.error(f"Gagal membaca Excel: {e}")
 
-# --- 6. MAIN CONTENT ---
+    st.markdown("---")
+    st.markdown("#### 📥 Import Excel")
+    up_file = st.file_uploader("Upload File Biaya", type=["xlsx"])
+    if up_file:
+        df_up = pd.read_excel(up_file)
+        st.session_state.costs = [{"item": str(r[0]), "price": int(r[1]), "qty": 1} for _, r in df_up.iterrows()]
+        st.rerun()
+
+# --- 5. MAIN CONTENT ---
 st.markdown(f"## {prod_name if prod_name else 'Pricing Planner'} ☁️")
 
-# --- STEP 1 ---
-st.markdown("### 🧮 Step 1: Cost Input")
-st.markdown("<div class='flower-spacer'>🌸 ✨ ☁️ Studio Pricing Mode ☁️ ✨ 🌸</div>", unsafe_allow_html=True)
+col1, col2 = st.columns([2, 1])
 
-st.markdown("<div class='p-card'>", unsafe_allow_html=True)
-h1, h2, h3, h4 = st.columns([3, 2, 1, 0.5])
-h1.markdown("<div class='table-header'>Nama Item</div>", unsafe_allow_html=True)
-h2.markdown("<div class='table-header'>Harga Satuan</div>", unsafe_allow_html=True)
-h3.markdown("<div class='table-header'>Qty</div>", unsafe_allow_html=True)
+with col1:
+    st.markdown("### Step 1: Rincian Biaya Produksi")
+    # Tabel Input Biaya
+    edited_costs = st.data_editor(
+        st.session_state.costs,
+        num_rows="dynamic",
+        column_config={
+            "item": "Nama Komponen",
+            "price": st.column_config.NumberColumn("Harga Satuan (Rp)", format="Rp %d"),
+            "qty": "Jumlah"
+        },
+        key="cost_editor"
+    )
+    st.session_state.costs = edited_costs
 
-total_var = 0
-for i, row in enumerate(st.session_state.costs):
-    c1, c2, c3, c4 = st.columns([3, 2, 1, 0.5])
-    with c1: st.session_state.costs[i]['item'] = st.text_input(f"n_{i}", row['item'], key=f"nm_{i}", label_visibility="collapsed")
-    with c2: st.session_state.costs[i]['price'] = st.number_input(f"p_{i}", value=int(row['price']), step=1000, key=f"pr_{i}", label_visibility="collapsed")
-    with c3: st.session_state.costs[i]['qty'] = st.number_input(f"q_{i}", value=int(row['qty']), step=1, key=f"qt_{i}", label_visibility="collapsed")
-    with c4: 
-        if st.button("✕", key=f"del_{i}"):
-            st.session_state.costs.pop(i); st.rerun()
-    total_var += (st.session_state.costs[i]['price'] * st.session_state.costs[i]['qty'])
+    # Fitur Download ke Excel
+    if st.session_state.costs:
+        df_export = pd.DataFrame(st.session_state.costs)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_export.to_excel(writer, index=False)
+        
+        st.download_button(
+            label="📥 Download Data Biaya ke Excel",
+            data=buffer.getvalue(),
+            file_name=f"Rincian_Biaya_{prod_name}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-st.button("➕ Tambah Baris Biaya", on_click=add_row)
-st.markdown("---")
-cx1, cx2 = st.columns(2)
-fixed_cost = cx1.number_input("Biaya Tetap Bulanan (Rp)", value=1500000, step=50000)
-target_qty = cx2.number_input("Target Produksi (Unit)", value=50, min_value=1)
-hpp_unit = int(total_var + (fixed_cost / target_qty))
+# Kalkulasi Total
+total_hpp = sum(item['price'] * item['qty'] for item in st.session_state.costs if item['price'])
 
-st.markdown(f"""<div style="display: flex; gap: 20px; margin-top:15px;">
-    <div style="flex:1"><span class="kpi-label">HPP Per Unit</span><span class="kpi-val">Rp {hpp_unit:,.0f}</span></div>
-    <div style="flex:1"><span class="kpi-label">Total Pengeluaran</span><span class="kpi-val" style="color:#8BA888">Rp {(hpp_unit*target_qty):,.0f}</span></div>
-</div>""", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+with col2:
+    st.markdown("### Step 2: Analisis Harga")
+    st.metric("Total HPP per Pcs", f"Rp {total_hpp:,}")
+    
+    target_margin = st.slider("Target Margin Keuntungan (%)", 10, 80, 30)
+    suggested_price = total_hpp / (1 - (target_margin / 100)) if total_hpp > 0 else 0
+    
+    st.success(f"Saran Harga Jual: **Rp {suggested_price:,.0f}**")
 
-# PERHITUNGAN HARGA (DITARUH DI SINI AGAR VARIABELNYA TERSEDIA UNTUK SEMUA STEP)
-safe_p = int(round(hpp_unit * 1.25, -2))
-sweet_p = int(round(hpp_unit * 1.45, -2))
-prem_p = int(round(hpp_unit * 2.0, -2))
-
-# --- STEP 2 ---
-st.markdown("### 📤 Step 2: Export & Finalization")
-st.markdown("<div class='flower-spacer'>✨ 📥 Simpan Laporan Cantikmu 📥 ✨</div>", unsafe_allow_html=True)
-st.markdown("<div class='p-card'>", unsafe_allow_html=True)
-output = io.BytesIO()
-with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-    pd.DataFrame(st.session_state.costs).to_excel(writer, index=False)
-st.download_button(label="📥 Unduh Laporan Lengkap", data=output.getvalue(), file_name=f"Pricing_{prod_name}.xlsx")
-st.markdown("</div>", unsafe_allow_html=True)
-
-# --- STEP 3 ---
-st.markdown("### 💰 Step 3: Pricing Strategy")
-st.markdown("<div class='flower-spacer'>🌸 Pilih Strategi Harga Terbaikmu 🌸</div>", unsafe_allow_html=True)
-sc1, sc2, sc3 = st.columns(3)
-strats = [
-    ("SAFE", safe_p, "20%", "Harga aman tanpa rugi."), 
-    ("SWEET", sweet_p, "31%", "Harga ideal & seimbang."), 
-    ("PREMIUM", prem_p, "50%", "Positioning eksklusif.")
-]
-for i, (lbl, prc, mrg, dsc) in enumerate(strats):
-    cls = "strat-sweet" if lbl == "SWEET" else ""
-    with [sc1, sc2, sc3][i]:
-        st.markdown(f"""<div class="strat-box {cls}">
-            <span class="kpi-label">{lbl}</span>
-            <span class="kpi-val">Rp {prc:,.0f}</span>
-            <div style="color:#8BA888; font-weight:700;">Margin: {mrg}</div>
-            <div style="font-size:11px; color:#999; margin-top:8px;">{dsc}</div>
-        </div>""", unsafe_allow_html=True)
-
-# --- STEP 4 ---
-st.markdown("### 📊 Step 4: Visual Insights")
-st.markdown("<div class='flower-spacer'>✨ Analisis Grafik Produksi ✨</div>", unsafe_allow_html=True)
-st.markdown("<div class='p-card'>", unsafe_allow_html=True)
-vi1, vi2 = st.columns(2)
-with vi1:
-    fig = go.Figure(data=[go.Bar(
-        x=['Safe', 'Sweet', 'Premium'], 
-        y=[safe_p, sweet_p, prem_p], 
-        marker_color='#D08C9F', 
-        text=[f"Rp {x:,.0f}" for x in [safe_p, sweet_p, prem_p]], 
-        textposition='auto'
-    )])
-    fig.update_layout(title="Proyeksi Harga Jual", height=350, plot_bgcolor='rgba(0,0,0,0)')
+# --- 6. GRAFIK ---
+if total_hpp > 0:
+    st.markdown("---")
+    st.markdown("### Step 3: Visualisasi Struktur Biaya")
+    df_chart = pd.DataFrame(st.session_state.costs)
+    fig = px.pie(df_chart, values='price', names='item', hole=0.4, color_discrete_sequence=px.colors.sequential.RdPu)
     st.plotly_chart(fig, use_container_width=True)
-with vi2:
-    x_b = np.linspace(0, target_qty*2, 20)
-    y_r = sweet_p * x_b
-    y_c = fixed_cost + (total_var * x_b)
-    fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=x_b, y=y_r, name="Revenue", line=dict(color='#8BA888', width=3)))
-    fig2.add_trace(go.Scatter(x=x_b, y=y_c, name="Cost", line=dict(color='#D08C9F', width=2)))
-    fig2.update_layout(title="Analisis BEP", height=350, plot_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig2, use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)

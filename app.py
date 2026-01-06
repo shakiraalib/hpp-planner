@@ -122,8 +122,8 @@ with st.sidebar:
                 <div style="font-size:11px; color:#666; line-height:1.5; white-space: pre-wrap;">{st.session_state.ai_res}</div>
             </div>""", unsafe_allow_html=True)
             
-            if st.button("✨ Dapatkan Saran AI"):
-            with st.spinner("Sedang menghitung..."):
+           if st.button("✨ Dapatkan Saran AI"):
+              with st.spinner("Sedang menghitung..."):
                 # Perintah diperketat agar AI kasih angka mentah juga
                 prompt = f"""
                 Kamu adalah konsultan produksi {intent_type}. 

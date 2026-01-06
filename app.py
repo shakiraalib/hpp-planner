@@ -99,46 +99,37 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("#### 🤖 AI Analysis")
     
-    if prod_name:
+   if prod_name:
+        # TOMBOL 1: DAPATKAN SARAN
         if st.button("✨ Dapatkan Saran AI"):
             with st.spinner("Sedang menghitung..."):
-                prompt = f"""
-                Kamu adalah ahli keuangan UMKM. Berikan estimasi biaya produksi untuk "{prod_name}" dalam kategori {intent_type}.
-                PENTING: Berikan jawaban dalam format daftar seperti ini agar bisa saya salin:
-                - Bahan Utama: [Angka Harga]
-                - Bahan Pendukung: [Angka Harga]
-                - Packaging: [Angka Harga]
-                - Ongkos Kerja: [Angka Harga]
-                Serta berikan tips singkat untuk menekan biaya tersebut.
-                """
-        
-        # JIKA AI SUDAH MENJAWAB, TAMPILKAN HASIL DAN TOMBOL INPUT
+                try:
+                    # Prompt yang meminta format angka bersih
+                    prompt = f"Berapa estimasi biaya produksi {prod_name}? Sebutkan dalam format: 1. Bahan Utama: Rp... 2. Bahan Pendukung: Rp... 3. Packaging: Rp... 4. Ongkos Kerja: Rp..."
+                    res = get_ai_response(prompt)
+                    st.session_state.ai_res = res
+                    st.rerun() # Paksa refresh supaya teks muncul
+                except Exception as e:
+                    st.error(f"Gagal koneksi AI: {e}")
+
+        # TAMPILKAN HASIL JIKA ADA
         if 'ai_res' in st.session_state:
-            st.markdown(f"""<div style="background: white; border: 1px solid #D08C9F; padding: 15px; border-radius: 15px; margin-bottom: 10px;">
-                <div style="color:#D08C9F; font-weight:700; font-size:12px; margin-bottom:8px;">✨ Analisis Produksi & Harga</div>
-                <div style="font-size:11px; color:#666; line-height:1.5; white-space: pre-wrap;">{st.session_state.ai_res}</div>
-            </div>""", unsafe_allow_html=True)
+            st.info(st.session_state.ai_res)
             
-            # TOMBOL INI HARUS SEJAJAR DENGAN TULISAN DI ATASNYA
+            # TOMBOL 2: MASUKKAN KE TABEL
             if st.button("🪄 Gunakan sebagai Rincian Biaya"):
-                import re # Untuk mencari angka otomatis
+                import re
+                # Cari angka saja dari teks AI
+                angka = re.findall(r'\d+', st.session_state.ai_res.replace('.', ''))
                 
-                # Mengambil semua angka dari teks AI
-                find_numbers = re.findall(r'Rp\s?(\d+(?:\.\d+)?)', st.session_state.ai_res.replace('.', ''))
-                if not find_numbers:
-                    find_numbers = re.findall(r'(\d+(?:\.\d+)?)', st.session_state.ai_res.replace('.', ''))
-                
-                # Jika AI memberikan angka, kita masukkan ke tabel
-                # Jika tidak ada angka, kita pakai default 0
-                prices = [int(n) for n in find_numbers if int(n) > 100] # Ambil angka yang masuk akal sebagai harga
-                
+                # Masukkan ke tabel (ambil 4 angka pertama yang ditemukan)
                 st.session_state.costs = [
-                    {"item": "Bahan Utama", "price": prices[0] if len(prices) > 0 else 0, "qty": 1}, 
-                    {"item": "Bahan Pendukung", "price": prices[1] if len(prices) > 1 else 0, "qty": 1}, 
-                    {"item": "Packaging", "price": prices[2] if len(prices) > 2 else 0, "qty": 1},
-                    {"item": "Ongkos Kerja", "price": prices[3] if len(prices) > 3 else 0, "qty": 1}
+                    {"item": "Bahan Utama (Saran AI)", "price": int(angka[0]) if len(angka) > 0 else 0, "qty": 1},
+                    {"item": "Bahan Pendukung", "price": int(angka[1]) if len(angka) > 1 else 0, "qty": 1},
+                    {"item": "Packaging", "price": int(angka[2]) if len(angka) > 2 else 0, "qty": 1},
+                    {"item": "Ongkos Kerja", "price": int(angka[3]) if len(angka) > 3 else 0, "qty": 1}
                 ]
-                st.success("✅ Berhasil! Harga estimasi AI telah dimasukkan ke tabel.")
+                st.success("Tabel diperbarui!")
                 st.rerun()
 
     st.markdown("---")

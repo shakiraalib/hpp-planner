@@ -136,8 +136,8 @@ with st.sidebar:
                 st.rerun()
 
     st.markdown("---")
-        st.markdown("#### 📥 Import Excel")
-        up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
+    st.markdown("#### 📥 Import Excel")
+    up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
         
         if up_file:
             # Gunakan fungsi internal untuk membaca agar lebih cepat

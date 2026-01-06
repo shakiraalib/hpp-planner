@@ -181,16 +181,44 @@ st.download_button(label="📥 Unduh Laporan Lengkap", data=output.getvalue(), f
 st.markdown("</div>", unsafe_allow_html=True)
 
 # --- STEP 3 ---
-st.markdown("### 💰 Step 3: Pricing Strategy")
+st.markdown("### 💰 Step 3: Pilih Strategi Harga")
+st.markdown("<div class='flower-spacer'>🌸 Pilih strategi untuk menghitung proyeksi laba 🌸</div>", unsafe_allow_html=True)
+
+# Tambahkan pilihan strategi
+selected_strat = st.radio(
+    "Gunakan strategi harga:",
+    ["SAFE (Margin 20%)", "SWEET (Margin 31%)", "PREMIUM (Margin 50%)"],
+    horizontal=True
+)
+
+# Logika pemilihan harga berdasarkan radio button
+if "SAFE" in selected_strat:
+    final_price = safe_p
+    margin_val = "20%"
+elif "SWEET" in selected_strat:
+    final_price = sweet_p
+    margin_val = "31%"
+else:
+    final_price = prem_p
+    margin_val = "50%"
+
+# Tampilkan Kartu Strategi (Visual tetap ada)
 sc1, sc2, sc3 = st.columns(3)
 strats = [("SAFE", safe_p, "20%"), ("SWEET", sweet_p, "31%"), ("PREMIUM", prem_p, "50%")]
+
 for i, (lbl, prc, mrg) in enumerate(strats):
+    # Beri warna highlight jika strategi dipilih
+    is_selected = lbl in selected_strat
+    cls = "strat-sweet" if is_selected else ""
     with [sc1, sc2, sc3][i]:
-        st.markdown(f"""<div class="strat-box {'strat-sweet' if lbl=='SWEET' else ''}">
-            <span class="kpi-label">{lbl}</span><span class="kpi-val">Rp {prc:,.0f}</span>
+        st.markdown(f"""<div class="strat-box {cls}">
+            <span class="kpi-label">{lbl} {'✅' if is_selected else ''}</span>
+            <span class="kpi-val">Rp {prc:,.0f}</span>
             <div style="color:#8BA888; font-weight:700;">Margin: {mrg}</div>
         </div>""", unsafe_allow_html=True)
 
+# Tampilkan ringkasan pilihan
+st.success(f"Kamu memilih strategi **{selected_strat}**. Harga Jual Final: **Rp {final_price:,.0f}**")
 # --- STEP 4 ---
 st.markdown("### 📊 Step 4: Visual Insights")
 

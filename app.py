@@ -88,7 +88,7 @@ if 'costs' not in st.session_state:
 def add_row(): 
     st.session_state.costs.append({"item": "", "price": 0, "qty": 1})
 
-# --- 5. SIDEBAR (FITUR LENGKAP KEMBALI) ---
+# --- 5. SIDEBAR ---
 with st.sidebar:
     st.markdown("### 🌸 Strategic Assistance")
     st.caption("Bantu tentukan harga paling aman & menguntungkan.")
@@ -97,41 +97,31 @@ with st.sidebar:
     intent_type = st.selectbox("Tujuan:", ["Koleksi Fashion", "Produk Beauty", "Food & Beverage", "Custom Project"])
     prod_name = st.text_input("Nama Produk:", placeholder="e.g. Linen Dress Summer")
     st.markdown("---")
-    st.markdown("#### 🤖 AI Analysis - Material Suggestion")
+    st.markdown("#### 🤖 AI Analysis")
     
     if prod_name:
         if st.button("✨ Dapatkan Saran AI"):
-            with st.spinner("Sedang menghitung estimasi bahan..."):
-                # INI PERUBAHANNYA: Perintah ke AI dibuat lebih detail
-                prompt = f"""
-                Kamu adalah konsultan produksi untuk bisnis {intent_type}. 
-                Analisis rincian bahan yang dibutuhkan untuk membuat "{prod_name}".
-                
-                Berikan jawaban dalam bentuk daftar:
-                1. Nama Bahan & kegunaannya.
-                2. Estimasi harga pasar di Indonesia (dalam Rp).
-                3. Estimasi total biaya bahan baku per 1 pcs produk.
-                
-                Tuliskan secara singkat, padat, dan jelas untuk UMKM.
-                """
+            with st.spinner("Sedang menghitung..."):
+                prompt = f"Berikan rincian bahan dan harga untuk membuat {prod_name} dalam bisnis {intent_type}."
                 st.session_state.ai_res = get_ai_response(prompt)
         
+        # JIKA AI SUDAH MENJAWAB, TAMPILKAN HASIL DAN TOMBOL INPUT
         if 'ai_res' in st.session_state:
             st.markdown(f"""<div style="background: white; border: 1px solid #D08C9F; padding: 15px; border-radius: 15px; margin-bottom: 10px;">
                 <div style="color:#D08C9F; font-weight:700; font-size:12px; margin-bottom:8px;">✨ Analisis Produksi & Harga</div>
                 <div style="font-size:11px; color:#666; line-height:1.5; white-space: pre-wrap;">{st.session_state.ai_res}</div>
             </div>""", unsafe_allow_html=True)
             
-           if st.button("🪄 Gunakan sebagai Rincian Biaya"):
-                    # Ini bagian yang mereset tabel agar terisi template
-                    st.session_state.costs = [
-                        {"item": "Bahan Utama", "price": 0, "qty": 1}, 
-                        {"item": "Bahan Pendukung", "price": 0, "qty": 1}, 
-                        {"item": "Packaging", "price": 0, "qty": 1},
-                        {"item": "Ongkos Kerja", "price": 0, "qty": 1}
-                    ]
-                    st.rerun()
-    
+            # TOMBOL INI HARUS SEJAJAR DENGAN TULISAN DI ATASNYA
+            if st.button("🪄 Gunakan sebagai Rincian Biaya"):
+                st.session_state.costs = [
+                    {"item": "Bahan Utama", "price": 0, "qty": 1}, 
+                    {"item": "Bahan Pendukung", "price": 0, "qty": 1}, 
+                    {"item": "Packaging", "price": 0, "qty": 1},
+                    {"item": "Ongkos Kerja", "price": 0, "qty": 1}
+                ]
+                st.rerun()
+
     st.markdown("---")
     st.markdown("#### 📥 Import Excel")
     up_file = st.file_uploader("Upload XLSX", type=["xlsx"])
